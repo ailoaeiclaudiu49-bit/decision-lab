@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    body { font-family: sans-serif; background: #f0f2f5; padding: 15px; color: #1c1e21; }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2 { margin: 0 0 20px 0; color: #1877f2; font-size: 18px; text-align: center; }
+    
+    .weight-controls { margin-bottom: 25px; background: #f9f9f9; padding: 15px; border-radius: 8px; }
+    .weight-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .weight-row label { flex: 1; font-size: 13px; font-weight: bold; }
+    input[type=range] { flex: 2; accent-color: #1877f2; }
+
+    .results { display: flex; flex-direction: column; gap: 15px; }
+    .option-result { background: #fff; border: 2px solid #eee; padding: 15px; border-radius: 10px; transition: all 0.3s; }
+    .option-result.winner { border-color: #2ecc71; background: #fafffa; transform: scale(1.02); }
+    .option-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .option-name { font-weight: bold; font-size: 16px; }
+    .score-pill { background: #1877f2; color: white; padding: 4px 10px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+    .progress-bg { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #2ecc71; width: 0%; transition: width 0.3s; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 id="title">Decision Matrix</h2>
+    
+    <div class="weight-controls" id="controls">
+      <p style="margin:0 0 10px 0; font-size: 12px; color: #666;">Adjust Importance:</p>
+    </div>
+
+    <div class="results" id="results-list"></div>
+  </div>
+
+  <script>
+    let data = {};
+    let weights = [1, 1, 1, 1];
+
+    function calculate() {
+      const scores = data.options.map(opt => {
+        let total = 0;
+        let maxPossible = 0;
+        opt.scores.forEach((s, i) => {
+          total += s * weights[i];
+          maxPossible += 10 * weights[i];
+        });
+        return { name: opt.name, pct: (total / maxPossible) * 100 };
+      });
+
+      const highest = Math.max(...scores.map(s => s.pct));
+      
+      const list = document.getElementById('results-list');
+      list.innerHTML = '';
+      
+      scores.forEach(s => {
+        const isWinner = s.pct === highest && highest > 0;
+        const div = document.createElement('div');
+        div.className = `option-result ${isWinner ? 'winner' : ''}`;
+        div.innerHTML = `
+          <div class="option-header">
+            <span class="option-name">${isWinner ? '🏆 ' : ''}${s.name}</span>
+            <span class="score-pill">${Math.round(s.pct)}% Match</span>
+          </div>
+          <div class="progress-bg"><div class="progress-fill" style="width: ${s.pct}%"></div></div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    try {
+      if (params.has('data')) {
+        data = JSON.parse(decodeURIComponent(params.get('data')));
+        document.getElementById('title').innerText = data.title;
+        
+        const controls = document.getElementById('controls');
+        data.criteria.forEach((c, i) => {
+          const row = document.createElement('div');
+          row.className = 'weight-row';
+          row.innerHTML = `
+            <label>${c}</label>
+            <input type="range" min="0" max="5" value="1" oninput="updateWeight(${i}, this.value)">
+          `;
+          controls.appendChild(row);
+        });
+        calculate();
+      }
+    } catch (e) {}
+
+    function updateWeight(index, val) {
+      weights[index] = parseInt(val);
+      calculate();
+    }
+  </script>
+</body>
+</html>
